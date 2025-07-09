@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import QTimer, Qt, QPoint, QRect, QSize, pyqtSignal
 from PyQt5.QtGui import (QPainter, QColor, QBrush, QPen, QFont, QPixmap, 
                          QPolygon, QLinearGradient, QRadialGradient)
-from PyQt5.QtOpenGL import QOpenGLWidget
+# from PyQt5.QtOpenGL import QOpenGLWidget  # Не используется в этой версии
 
 class GameState(Enum):
     MENU = 1
