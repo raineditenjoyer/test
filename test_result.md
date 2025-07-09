@@ -117,67 +117,67 @@ frontend:
     status_history:
       - working: true
         agent: "main"
-        comment: "Базовая механика уже реализована: движение игрока, стрельба, враги, коллизии"
+        comment: "Базовая механика реализована: движение игрока, стрельба, враги, коллизии"
         
   - task: "Звуковые эффекты"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "galaga_game.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Нужно добавить звуковые эффекты для стрельбы, взрывов, фоновой музыки"
+        comment: "Добавлен SoundManager для управления звуками и музыкой, интегрирован в игровой движок"
         
   - task: "Меню настроек"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "galaga_game.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Нужно добавить меню настроек для управления, графики, аудио"
+        comment: "Добавлен SettingsDialog с вкладками для звука, графики и управления"
         
   - task: "Уровни сложности"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "galaga_game.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Нужно добавить разные уровни сложности: легкий, средний, сложный"
+        comment: "Добавлены три уровня сложности: легкий, средний, сложный с разными параметрами"
         
   - task: "Система статистики"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "galaga_game.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Нужно добавить систему сохранения результатов, графики matplotlib, фильтрацию"
+        comment: "Добавлен StatisticsManager с базой данных SQLite, графиками matplotlib и фильтрацией"
         
   - task: "Улучшение дизайна кораблей"
-    implemented: false
-    working: "NA"
+    implemented: true
+    working: true
     file: "galaga_game.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Нужно улучшить дизайн кораблей в стиле синих футуристических кораблей"
+        comment: "Улучшен дизайн игрока и врагов в стиле синих футуристических кораблей с градиентами"
 
 metadata:
   created_by: "main_agent"
