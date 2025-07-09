@@ -370,6 +370,14 @@ class GameEngine:
         self.score = 0
         self.high_score = self.load_high_score()
         self.wave = 1
+        self.game_start_time = 0
+        self.enemies_killed = 0
+        self.shots_fired = 0
+        
+        # Менеджеры
+        self.sound_manager = SoundManager()
+        self.sound_manager.set_settings(self.settings)
+        self.stats_manager = StatisticsManager()
         
         # Игровые объекты
         self.player = Player(self.settings.window_width // 2 - 20, 
@@ -385,6 +393,31 @@ class GameEngine:
         # Таймеры
         self.enemy_spawn_timer = 0
         self.power_up_spawn_timer = 0
+        self.shoot_cooldown = 0
+        
+        # Настройки сложности
+        self.apply_difficulty_settings()
+        
+    def apply_difficulty_settings(self):
+        """Применение настроек сложности"""
+        if self.settings.difficulty == DifficultyLevel.EASY:
+            self.settings.player_speed = 6
+            self.settings.bullet_speed = 10
+            self.settings.enemy_speed = 1
+            self.settings.enemy_bullet_speed = 3
+            self.player.lives = 5
+        elif self.settings.difficulty == DifficultyLevel.MEDIUM:
+            self.settings.player_speed = 5
+            self.settings.bullet_speed = 8
+            self.settings.enemy_speed = 2
+            self.settings.enemy_bullet_speed = 4
+            self.player.lives = 3
+        else:  # HARD
+            self.settings.player_speed = 4
+            self.settings.bullet_speed = 7
+            self.settings.enemy_speed = 3
+            self.settings.enemy_bullet_speed = 5
+            self.player.lives = 2
         
     def load_high_score(self) -> int:
         try:
@@ -401,16 +434,105 @@ class GameEngine:
         except:
             pass
             
+    def save_settings(self):
+        """Сохранение настроек в файл"""
+        try:
+            settings_dict = {
+                'sound_enabled': self.settings.sound_enabled,
+                'music_enabled': self.settings.music_enabled,
+                'sound_volume': self.settings.sound_volume,
+                'music_volume': self.settings.music_volume,
+                'key_left': self.settings.key_left,
+                'key_right': self.settings.key_right,
+                'key_up': self.settings.key_up,
+                'key_down': self.settings.key_down,
+                'key_shoot': self.settings.key_shoot,
+                'key_alt_left': self.settings.key_alt_left,
+                'key_alt_right': self.settings.key_alt_right,
+                'key_alt_up': self.settings.key_alt_up,
+                'key_alt_down': self.settings.key_alt_down,
+                'effects_enabled': self.settings.effects_enabled,
+                'particles_enabled': self.settings.particles_enabled,
+                'background_quality': self.settings.background_quality,
+                'difficulty': self.settings.difficulty.value
+            }
+            
+            with open('game_settings.json', 'w') as f:
+                json.dump(settings_dict, f)
+        except Exception as e:
+            print(f"Ошибка сохранения настроек: {e}")
+            
+    def load_settings(self):
+        """Загрузка настроек из файла"""
+        try:
+            with open('game_settings.json', 'r') as f:
+                settings_dict = json.load(f)
+                
+            self.settings.sound_enabled = settings_dict.get('sound_enabled', True)
+            self.settings.music_enabled = settings_dict.get('music_enabled', True)
+            self.settings.sound_volume = settings_dict.get('sound_volume', 0.7)
+            self.settings.music_volume = settings_dict.get('music_volume', 0.5)
+            self.settings.key_left = settings_dict.get('key_left', Qt.Key_Left)
+            self.settings.key_right = settings_dict.get('key_right', Qt.Key_Right)
+            self.settings.key_up = settings_dict.get('key_up', Qt.Key_Up)
+            self.settings.key_down = settings_dict.get('key_down', Qt.Key_Down)
+            self.settings.key_shoot = settings_dict.get('key_shoot', Qt.Key_Space)
+            self.settings.key_alt_left = settings_dict.get('key_alt_left', Qt.Key_A)
+            self.settings.key_alt_right = settings_dict.get('key_alt_right', Qt.Key_D)
+            self.settings.key_alt_up = settings_dict.get('key_alt_up', Qt.Key_W)
+            self.settings.key_alt_down = settings_dict.get('key_alt_down', Qt.Key_S)
+            self.settings.effects_enabled = settings_dict.get('effects_enabled', True)
+            self.settings.particles_enabled = settings_dict.get('particles_enabled', True)
+            self.settings.background_quality = settings_dict.get('background_quality', 1)
+            
+            difficulty_value = settings_dict.get('difficulty', DifficultyLevel.MEDIUM.value)
+            self.settings.difficulty = DifficultyLevel(difficulty_value)
+            
+            self.sound_manager.set_settings(self.settings)
+            
+        except Exception as e:
+            print(f"Ошибка загрузки настроек: {e}")
+            
     def start_game(self):
         self.state = GameState.PLAYING
         self.score = 0
         self.wave = 1
+        self.game_start_time = datetime.datetime.now().timestamp()
+        self.enemies_killed = 0
+        self.shots_fired = 0
+        
+        self.apply_difficulty_settings()
         self.player = Player(self.settings.window_width // 2 - 20, 
                            self.settings.window_height - 50)
         self.bullets.clear()
         self.enemies.clear()
         self.power_ups.clear()
         self.particles.clear()
+        
+        # Запуск фоновой музыки
+        self.sound_manager.play_music('background')
+        
+    def end_game(self):
+        """Завершение игры и сохранение статистики"""
+        if self.state == GameState.PLAYING:
+            game_duration = int(datetime.datetime.now().timestamp() - self.game_start_time)
+            
+            # Сохранение результата
+            self.stats_manager.save_game_result(
+                score=self.score,
+                level=self.wave,
+                difficulty=self.settings.difficulty.name,
+                duration=game_duration,
+                enemies_killed=self.enemies_killed,
+                shots_fired=self.shots_fired
+            )
+            
+            self.state = GameState.GAME_OVER
+            self.sound_manager.stop_music()
+            
+            if self.score > self.high_score:
+                self.high_score = self.score
+                self.save_high_score()
         
     def spawn_enemy_wave(self):
         for i in range(5 + self.wave):
@@ -426,24 +548,35 @@ class GameEngine:
         # Обновление игрока
         self.player.update()
         
+        # Обновление кулдауна стрельбы
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+        
         # Движение игрока
-        if Qt.Key_Left in self.keys_pressed or Qt.Key_A in self.keys_pressed:
+        if (self.settings.key_left in self.keys_pressed or 
+            self.settings.key_alt_left in self.keys_pressed):
             self.player.x = max(0, self.player.x - self.settings.player_speed)
-        if Qt.Key_Right in self.keys_pressed or Qt.Key_D in self.keys_pressed:
+        if (self.settings.key_right in self.keys_pressed or 
+            self.settings.key_alt_right in self.keys_pressed):
             self.player.x = min(self.settings.window_width - self.player.width, 
                                self.player.x + self.settings.player_speed)
-        if Qt.Key_Up in self.keys_pressed or Qt.Key_W in self.keys_pressed:
+        if (self.settings.key_up in self.keys_pressed or 
+            self.settings.key_alt_up in self.keys_pressed):
             self.player.y = max(0, self.player.y - self.settings.player_speed)
-        if Qt.Key_Down in self.keys_pressed or Qt.Key_S in self.keys_pressed:
+        if (self.settings.key_down in self.keys_pressed or 
+            self.settings.key_alt_down in self.keys_pressed):
             self.player.y = min(self.settings.window_height - self.player.height, 
                                self.player.y + self.settings.player_speed)
             
         # Стрельба
-        if Qt.Key_Space in self.keys_pressed:
+        if self.settings.key_shoot in self.keys_pressed and self.shoot_cooldown <= 0:
             if len([b for b in self.bullets if b.is_player_bullet]) < 5:
                 bullet = Bullet(self.player.x + self.player.width // 2, 
                                self.player.y, -self.settings.bullet_speed)
                 self.bullets.append(bullet)
+                self.shots_fired += 1
+                self.shoot_cooldown = 10  # Кулдаун стрельбы
+                self.sound_manager.play_sound('shoot')
                 
         # Обновление пуль
         for bullet in self.bullets[:]:
@@ -476,10 +609,11 @@ class GameEngine:
         self.check_collisions()
         
         # Обновление частиц
-        for particle in self.particles[:]:
-            particle.update()
-            if not particle.active:
-                self.particles.remove(particle)
+        if self.settings.particles_enabled:
+            for particle in self.particles[:]:
+                particle.update()
+                if not particle.active:
+                    self.particles.remove(particle)
                 
         # Обновление power-ups
         for power_up in self.power_ups[:]:
@@ -489,11 +623,8 @@ class GameEngine:
                 
         # Проверка окончания игры
         if self.player.lives <= 0:
-            self.state = GameState.GAME_OVER
-            if self.score > self.high_score:
-                self.high_score = self.score
-                self.save_high_score()
-                
+            self.end_game()
+            
     def check_collisions(self):
         # Коллизии пуль игрока с врагами
         for bullet in self.bullets[:]:
@@ -505,15 +636,19 @@ class GameEngine:
                     self.bullets.remove(bullet)
                     self.enemies.remove(enemy)
                     self.score += enemy.points
+                    self.enemies_killed += 1
+                    
+                    self.sound_manager.play_sound('explosion')
                     
                     # Эффект взрыва
-                    for _ in range(8):
-                        particle = ParticleEffect(
-                            enemy.x + enemy.width // 2,
-                            enemy.y + enemy.height // 2,
-                            QColor(255, 165, 0)
-                        )
-                        self.particles.append(particle)
+                    if self.settings.effects_enabled:
+                        for _ in range(8):
+                            particle = ParticleEffect(
+                                enemy.x + enemy.width // 2,
+                                enemy.y + enemy.height // 2,
+                                QColor(255, 165, 0)
+                            )
+                            self.particles.append(particle)
                         
                     # Шанс выпадения power-up
                     if random.random() < 0.1:
@@ -530,28 +665,31 @@ class GameEngine:
             if bullet.collides_with(self.player) and not self.player.is_invulnerable():
                 self.bullets.remove(bullet)
                 self.player.take_damage()
+                self.sound_manager.play_sound('hit')
                 
                 # Эффект попадания
-                for _ in range(5):
-                    particle = ParticleEffect(
-                        self.player.x + self.player.width // 2,
-                        self.player.y + self.player.height // 2,
-                        QColor(255, 0, 0)
-                    )
-                    self.particles.append(particle)
+                if self.settings.effects_enabled:
+                    for _ in range(5):
+                        particle = ParticleEffect(
+                            self.player.x + self.player.width // 2,
+                            self.player.y + self.player.height // 2,
+                            QColor(255, 0, 0)
+                        )
+                        self.particles.append(particle)
                     
         # Коллизии врагов с игроком
         for enemy in self.enemies[:]:
             if enemy.collides_with(self.player) and not self.player.is_invulnerable():
                 self.enemies.remove(enemy)
                 self.player.take_damage()
+                self.sound_manager.play_sound('hit')
                 
         # Коллизии power-ups с игроком
         for power_up in self.power_ups[:]:
             if power_up.collides_with(self.player):
                 self.power_ups.remove(power_up)
-                # Здесь можно добавить логику применения power-up
                 self.score += 50
+                self.sound_manager.play_sound('powerup')
 
 class GameWidget(QWidget):
     def __init__(self):
