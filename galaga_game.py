@@ -393,7 +393,7 @@ class GameWidget(QWidget):
         # Звёзды
         painter.setPen(QPen(QColor(255, 255, 255, 180), 1))
         for star in self.background_stars:
-            painter.drawEllipse(star['x'], star['y'], star['size'], star['size'])
+            painter.drawEllipse(int(star['x']), int(star['y']), int(star['size']), int(star['size']))
             
         if self.engine.state == GameState.MENU:
             self.draw_menu(painter)
