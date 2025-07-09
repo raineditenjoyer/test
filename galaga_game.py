@@ -34,6 +34,9 @@ import matplotlib.dates as mdates
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
+# Импорт диалогов
+from dialogs import SettingsDialog, StatisticsDialog
+
 class GameState(Enum):
     MENU = 1
     PLAYING = 2
