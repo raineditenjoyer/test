@@ -442,7 +442,7 @@ class GameWidget(QWidget):
             color = QColor(particle.color)
             color.setAlpha(particle.get_alpha())
             painter.setBrush(QBrush(color))
-            painter.drawEllipse(particle.x, particle.y, 3, 3)
+            painter.drawEllipse(int(particle.x), int(particle.y), 3, 3)
             
         # HUD
         self.draw_hud(painter)
