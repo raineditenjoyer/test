@@ -1106,6 +1106,111 @@ class MainWindow(QMainWindow):
             QMainWindow {
                 background-color: #000020;
             }
+            QDialog {
+                background-color: #1a1a2e;
+                color: #ffffff;
+            }
+            QTabWidget::pane {
+                border: 1px solid #4a4a6a;
+                background-color: #2a2a3a;
+            }
+            QTabWidget::tab-bar {
+                alignment: center;
+            }
+            QTabBar::tab {
+                background-color: #3a3a4a;
+                color: #ffffff;
+                padding: 8px 16px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background-color: #4a4a6a;
+            }
+            QPushButton {
+                background-color: #4a4a6a;
+                color: #ffffff;
+                border: 1px solid #6a6a8a;
+                padding: 6px 12px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #5a5a7a;
+            }
+            QPushButton:pressed {
+                background-color: #3a3a5a;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid #4a4a6a;
+                height: 8px;
+                background: #2a2a3a;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #6a6a8a;
+                border: 1px solid #8a8aaa;
+                width: 18px;
+                border-radius: 9px;
+            }
+            QCheckBox {
+                color: #ffffff;
+            }
+            QLabel {
+                color: #ffffff;
+            }
+            QRadioButton {
+                color: #ffffff;
+            }
+            QGroupBox {
+                color: #ffffff;
+                border: 1px solid #4a4a6a;
+                border-radius: 4px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }
+            QTableWidget {
+                background-color: #2a2a3a;
+                color: #ffffff;
+                gridline-color: #4a4a6a;
+                border: 1px solid #4a4a6a;
+            }
+            QTableWidget::item {
+                padding: 4px;
+            }
+            QTableWidget::item:selected {
+                background-color: #4a4a6a;
+            }
+            QHeaderView::section {
+                background-color: #3a3a4a;
+                color: #ffffff;
+                padding: 4px;
+                border: 1px solid #4a4a6a;
+            }
+            QComboBox {
+                background-color: #3a3a4a;
+                color: #ffffff;
+                border: 1px solid #4a4a6a;
+                padding: 4px;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid #ffffff;
+            }
+            QSpinBox {
+                background-color: #3a3a4a;
+                color: #ffffff;
+                border: 1px solid #4a4a6a;
+                padding: 4px;
+            }
         """)
 
 def main():
