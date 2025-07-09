@@ -6,6 +6,8 @@ import os
 import random
 import math
 import json
+import sqlite3
+import datetime
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
 from enum import Enum
@@ -15,11 +17,22 @@ sys.path.append('/usr/lib/python3/dist-packages')
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QPushButton, QDialog, 
-                             QDialogButtonBox, QTextEdit, QFrame)
-from PyQt5.QtCore import QTimer, Qt, QPoint, QRect, QSize, pyqtSignal
+                             QDialogButtonBox, QTextEdit, QFrame, QGridLayout,
+                             QSlider, QComboBox, QCheckBox, QTabWidget,
+                             QTableWidget, QTableWidgetItem, QHeaderView,
+                             QGroupBox, QRadioButton, QButtonGroup, QSpinBox,
+                             QMessageBox, QKeySequenceEdit, QProgressBar)
+from PyQt5.QtCore import QTimer, Qt, QPoint, QRect, QSize, pyqtSignal, QThread
 from PyQt5.QtGui import (QPainter, QColor, QBrush, QPen, QFont, QPixmap, 
-                         QPolygon, QLinearGradient, QRadialGradient)
-# from PyQt5.QtOpenGL import QOpenGLWidget  # Не используется в этой версии
+                         QPolygon, QLinearGradient, QRadialGradient, QKeySequence)
+from PyQt5.QtMultimedia import QSound, QSoundEffect, QMediaPlayer, QMediaContent
+from PyQt5.QtCore import QUrl
+
+# Для графиков статистики
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 class GameState(Enum):
     MENU = 1
