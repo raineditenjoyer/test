@@ -698,6 +698,7 @@ class GameWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.engine = GameEngine()
+        self.engine.load_settings()  # Загрузка настроек
         self.setFixedSize(self.engine.settings.window_width, 
                          self.engine.settings.window_height)
         self.setFocusPolicy(Qt.StrongFocus)
@@ -709,12 +710,25 @@ class GameWidget(QWidget):
         
         # Фон
         self.background_stars = []
-        for _ in range(100):
+        self.init_background()
+        
+        # Диалоги
+        self.settings_dialog = None
+        self.difficulty_dialog = None
+        self.statistics_dialog = None
+        
+    def init_background(self):
+        """Инициализация фона в зависимости от настроек качества"""
+        star_count = [50, 100, 150][self.engine.settings.background_quality]
+        
+        self.background_stars = []
+        for _ in range(star_count):
             self.background_stars.append({
                 'x': random.randint(0, self.engine.settings.window_width),
                 'y': random.randint(0, self.engine.settings.window_height),
                 'speed': random.uniform(0.5, 2.0),
-                'size': random.randint(1, 3)
+                'size': random.randint(1, 3),
+                'brightness': random.randint(100, 255)
             })
             
     def update_game(self):
@@ -732,35 +746,74 @@ class GameWidget(QWidget):
     def keyPressEvent(self, event):
         self.engine.keys_pressed.add(event.key())
         
-        if event.key() == Qt.Key_P and self.engine.state == GameState.PLAYING:
-            self.engine.state = GameState.PAUSED
-        elif event.key() == Qt.Key_P and self.engine.state == GameState.PAUSED:
-            self.engine.state = GameState.PLAYING
-        elif event.key() == Qt.Key_Return and self.engine.state == GameState.MENU:
-            self.engine.start_game()
-        elif event.key() == Qt.Key_R and self.engine.state == GameState.GAME_OVER:
-            self.engine.start_game()
-            
+        # Обработка состояний
+        if self.engine.state == GameState.MENU:
+            if event.key() == Qt.Key_Return:
+                self.engine.state = GameState.DIFFICULTY_SELECT
+            elif event.key() == Qt.Key_S:
+                self.show_settings()
+            elif event.key() == Qt.Key_T:
+                self.show_statistics()
+            elif event.key() == Qt.Key_Escape:
+                QApplication.quit()
+                
+        elif self.engine.state == GameState.DIFFICULTY_SELECT:
+            if event.key() == Qt.Key_Return:
+                self.engine.start_game()
+            elif event.key() == Qt.Key_Escape:
+                self.engine.state = GameState.MENU
+                
+        elif self.engine.state == GameState.PLAYING:
+            if event.key() == Qt.Key_P:
+                self.engine.state = GameState.PAUSED
+            elif event.key() == Qt.Key_Escape:
+                self.engine.state = GameState.MENU
+                
+        elif self.engine.state == GameState.PAUSED:
+            if event.key() == Qt.Key_P:
+                self.engine.state = GameState.PLAYING
+            elif event.key() == Qt.Key_Escape:
+                self.engine.state = GameState.MENU
+                
+        elif self.engine.state == GameState.GAME_OVER:
+            if event.key() == Qt.Key_R:
+                self.engine.state = GameState.DIFFICULTY_SELECT
+            elif event.key() == Qt.Key_Escape:
+                self.engine.state = GameState.MENU
+                
     def keyReleaseEvent(self, event):
         self.engine.keys_pressed.discard(event.key())
+        
+    def show_settings(self):
+        """Показ диалога настроек"""
+        if not self.settings_dialog:
+            self.settings_dialog = SettingsDialog(self.engine.settings, self)
+            
+        if self.settings_dialog.exec_() == QDialog.Accepted:
+            self.engine.save_settings()
+            self.engine.sound_manager.set_settings(self.engine.settings)
+            self.init_background()  # Обновляем фон
+            
+    def show_statistics(self):
+        """Показ диалога статистики"""
+        if not self.statistics_dialog:
+            self.statistics_dialog = StatisticsDialog(self.engine.stats_manager, self)
+        else:
+            self.statistics_dialog.update_statistics()
+            
+        self.statistics_dialog.exec_()
         
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
         # Фон
-        gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0, QColor(0, 0, 20))
-        gradient.setColorAt(1, QColor(0, 0, 80))
-        painter.fillRect(self.rect(), gradient)
+        self.draw_background(painter)
         
-        # Звёзды
-        painter.setPen(QPen(QColor(255, 255, 255, 180), 1))
-        for star in self.background_stars:
-            painter.drawEllipse(int(star['x']), int(star['y']), int(star['size']), int(star['size']))
-            
         if self.engine.state == GameState.MENU:
             self.draw_menu(painter)
+        elif self.engine.state == GameState.DIFFICULTY_SELECT:
+            self.draw_difficulty_select(painter)
         elif self.engine.state == GameState.PLAYING:
             self.draw_game(painter)
         elif self.engine.state == GameState.PAUSED:
@@ -769,29 +822,76 @@ class GameWidget(QWidget):
         elif self.engine.state == GameState.GAME_OVER:
             self.draw_game_over(painter)
             
+    def draw_background(self, painter):
+        """Отрисовка фона"""
+        # Градиент
+        gradient = QLinearGradient(0, 0, 0, self.height())
+        gradient.setColorAt(0, QColor(5, 5, 30))
+        gradient.setColorAt(0.5, QColor(10, 10, 50))
+        gradient.setColorAt(1, QColor(20, 20, 80))
+        painter.fillRect(self.rect(), gradient)
+        
+        # Звёзды
+        for star in self.background_stars:
+            color = QColor(255, 255, 255, star['brightness'])
+            painter.setPen(QPen(color, 1))
+            painter.drawEllipse(int(star['x']), int(star['y']), 
+                              int(star['size']), int(star['size']))
+            
     def draw_menu(self, painter):
         painter.setPen(QPen(QColor(255, 255, 255), 2))
         painter.setFont(QFont('Arial', 36, QFont.Bold))
         painter.drawText(self.rect(), Qt.AlignCenter, "GALAGA REDUX")
         
         painter.setFont(QFont('Arial', 16))
-        painter.drawText(QRect(0, 300, self.width(), 100), Qt.AlignCenter, 
-                        "Нажмите ENTER для начала игры")
-        painter.drawText(QRect(0, 350, self.width(), 100), Qt.AlignCenter, 
+        y_offset = 320
+        
+        painter.drawText(QRect(0, y_offset, self.width(), 30), Qt.AlignCenter, 
+                        "ENTER - Начать игру")
+        painter.drawText(QRect(0, y_offset + 30, self.width(), 30), Qt.AlignCenter, 
+                        "S - Настройки")
+        painter.drawText(QRect(0, y_offset + 60, self.width(), 30), Qt.AlignCenter, 
+                        "T - Статистика")
+        painter.drawText(QRect(0, y_offset + 90, self.width(), 30), Qt.AlignCenter, 
+                        "ESC - Выход")
+        
+        painter.drawText(QRect(0, y_offset + 140, self.width(), 30), Qt.AlignCenter, 
                         f"Рекорд: {self.engine.high_score}")
+        
+    def draw_difficulty_select(self, painter):
+        painter.setPen(QPen(QColor(255, 255, 255), 2))
+        painter.setFont(QFont('Arial', 24, QFont.Bold))
+        painter.drawText(QRect(0, 150, self.width(), 50), Qt.AlignCenter, 
+                        "Выберите сложность")
+        
+        painter.setFont(QFont('Arial', 16))
+        y_offset = 250
+        
+        difficulties = [
+            ("1 - Легкий", "Больше жизней, медленные враги"),
+            ("2 - Средний", "Стандартные параметры"),
+            ("3 - Сложный", "Меньше жизней, быстрые враги")
+        ]
+        
+        for i, (title, desc) in enumerate(difficulties):
+            color = QColor(0, 255, 0) if i == self.engine.settings.difficulty.value - 1 else QColor(255, 255, 255)
+            painter.setPen(QPen(color, 2))
+            painter.drawText(QRect(0, y_offset + i * 60, self.width(), 30), Qt.AlignCenter, title)
+            painter.setFont(QFont('Arial', 12))
+            painter.drawText(QRect(0, y_offset + i * 60 + 25, self.width(), 30), Qt.AlignCenter, desc)
+            painter.setFont(QFont('Arial', 16))
+            
+        painter.setPen(QPen(QColor(255, 255, 255), 2))
+        painter.drawText(QRect(0, y_offset + 200, self.width(), 30), Qt.AlignCenter, 
+                        "ENTER - Начать  |  ESC - Назад")
         
     def draw_game(self, painter):
         # Игрок
         self.draw_player(painter)
         
         # Пули
-        painter.setBrush(QBrush(QColor(255, 255, 0)))
         for bullet in self.engine.bullets:
-            if bullet.is_player_bullet:
-                painter.setBrush(QBrush(QColor(255, 255, 0)))
-            else:
-                painter.setBrush(QBrush(QColor(255, 0, 0)))
-            painter.drawEllipse(bullet.get_rect())
+            self.draw_bullet(painter, bullet)
             
         # Враги
         for enemy in self.engine.enemies:
@@ -802,65 +902,140 @@ class GameWidget(QWidget):
             self.draw_power_up(painter, power_up)
             
         # Частицы
-        for particle in self.engine.particles:
-            color = QColor(particle.color)
-            color.setAlpha(particle.get_alpha())
-            painter.setBrush(QBrush(color))
-            painter.drawEllipse(int(particle.x), int(particle.y), 3, 3)
+        if self.engine.settings.particles_enabled:
+            for particle in self.engine.particles:
+                self.draw_particle(painter, particle)
             
         # HUD
         self.draw_hud(painter)
         
     def draw_player(self, painter):
+        """Улучшенная отрисовка игрока в стиле синего футуристического корабля"""
         if self.engine.player.is_invulnerable() and (self.engine.player.invulnerable_time // 5) % 2:
             return  # Мигание при неуязвимости
             
-        # Корпус корабля
-        painter.setBrush(QBrush(QColor(0, 255, 0)))
-        painter.setPen(QPen(QColor(0, 200, 0), 2))
+        x = self.engine.player.x
+        y = self.engine.player.y
+        w = self.engine.player.width
+        h = self.engine.player.height
         
-        # Основной корпус
-        rect = self.engine.player.get_rect()
-        painter.drawEllipse(rect)
+        # Основной корпус - синий градиент
+        gradient = QLinearGradient(0, y, 0, y + h)
+        gradient.setColorAt(0, QColor(100, 150, 255))
+        gradient.setColorAt(0.5, QColor(50, 100, 255))
+        gradient.setColorAt(1, QColor(20, 80, 200))
         
-        # Крылья
-        painter.setBrush(QBrush(QColor(0, 200, 0)))
-        painter.drawEllipse(rect.x() - 5, rect.y() + 10, 10, 15)
-        painter.drawEllipse(rect.x() + rect.width() - 5, rect.y() + 10, 10, 15)
+        painter.setBrush(QBrush(gradient))
+        painter.setPen(QPen(QColor(150, 200, 255), 2))
         
+        # Основной корпус (овал)
+        painter.drawEllipse(int(x), int(y), w, h)
+        
+        # Боковые крылья
+        wing_gradient = QLinearGradient(0, y, 0, y + h//2)
+        wing_gradient.setColorAt(0, QColor(80, 120, 255))
+        wing_gradient.setColorAt(1, QColor(40, 80, 200))
+        painter.setBrush(QBrush(wing_gradient))
+        
+        # Левое крыло
+        painter.drawEllipse(int(x - 8), int(y + h//3), 12, h//2)
+        # Правое крыло
+        painter.drawEllipse(int(x + w - 4), int(y + h//3), 12, h//2)
+        
+        # Кокпит
+        painter.setBrush(QBrush(QColor(200, 220, 255, 150)))
+        painter.drawEllipse(int(x + w//4), int(y + h//4), w//2, h//3)
+        
+        # Двигатели (эффект свечения)
+        if self.engine.settings.effects_enabled:
+            painter.setBrush(QBrush(QColor(255, 255, 255, 100)))
+            painter.drawEllipse(int(x + w//4), int(y + h - 5), w//4, 8)
+            painter.drawEllipse(int(x + w//2), int(y + h - 5), w//4, 8)
+            
     def draw_enemy(self, painter, enemy):
-        rect = enemy.get_rect()
+        """Улучшенная отрисовка врагов"""
+        x = enemy.x
+        y = enemy.y
+        w = enemy.width
+        h = enemy.height
         
         if enemy.enemy_type == "basic":
-            painter.setBrush(QBrush(QColor(255, 0, 0)))
-            painter.setPen(QPen(QColor(200, 0, 0), 2))
+            # Красный враг
+            gradient = QLinearGradient(0, y, 0, y + h)
+            gradient.setColorAt(0, QColor(255, 100, 100))
+            gradient.setColorAt(1, QColor(200, 50, 50))
+            painter.setBrush(QBrush(gradient))
+            painter.setPen(QPen(QColor(255, 150, 150), 2))
         else:
-            painter.setBrush(QBrush(QColor(255, 0, 255)))
-            painter.setPen(QPen(QColor(200, 0, 200), 2))
+            # Фиолетовый враг (продвинутый)
+            gradient = QLinearGradient(0, y, 0, y + h)
+            gradient.setColorAt(0, QColor(255, 100, 255))
+            gradient.setColorAt(1, QColor(200, 50, 200))
+            painter.setBrush(QBrush(gradient))
+            painter.setPen(QPen(QColor(255, 150, 255), 2))
             
         # Основной корпус
-        painter.drawEllipse(rect)
+        painter.drawEllipse(int(x), int(y), w, h)
         
         # Антенны
-        painter.drawLine(rect.x() + 5, rect.y(), rect.x() + 5, rect.y() - 5)
-        painter.drawLine(rect.x() + rect.width() - 5, rect.y(), 
-                        rect.x() + rect.width() - 5, rect.y() - 5)
+        painter.drawLine(int(x + w//4), int(y), int(x + w//4), int(y - 8))
+        painter.drawLine(int(x + 3*w//4), int(y), int(x + 3*w//4), int(y - 8))
+        
+        # Глаза (для продвинутых врагов)
+        if enemy.enemy_type == "advanced":
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(int(x + w//4), int(y + h//3), 4, 4)
+            painter.drawEllipse(int(x + 3*w//4 - 4), int(y + h//3), 4, 4)
+            
+    def draw_bullet(self, painter, bullet):
+        """Отрисовка пуль"""
+        if bullet.is_player_bullet:
+            # Пули игрока - яркие желтые
+            painter.setBrush(QBrush(QColor(255, 255, 100)))
+            painter.setPen(QPen(QColor(255, 255, 200), 1))
+        else:
+            # Пули врагов - красные
+            painter.setBrush(QBrush(QColor(255, 100, 100)))
+            painter.setPen(QPen(QColor(255, 150, 150), 1))
+            
+        painter.drawEllipse(bullet.get_rect())
         
     def draw_power_up(self, painter, power_up):
+        """Отрисовка бонусов"""
         rect = power_up.get_rect()
         
+        # Эффект мерцания
+        alpha = int(200 + 55 * math.sin(self.engine.enemy_spawn_timer * 0.1))
+        
         if power_up.power_type == "rapid_fire":
-            painter.setBrush(QBrush(QColor(255, 255, 0)))
+            color = QColor(255, 255, 0, alpha)
         elif power_up.power_type == "double_shot":
-            painter.setBrush(QBrush(QColor(0, 255, 255)))
+            color = QColor(0, 255, 255, alpha)
         else:  # shield
-            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            color = QColor(255, 255, 255, alpha)
             
+        painter.setBrush(QBrush(color))
+        painter.setPen(QPen(color, 2))
         painter.drawEllipse(rect)
         
+        # Символ в центре
+        painter.setPen(QPen(QColor(0, 0, 0), 2))
+        painter.setFont(QFont('Arial', 12, QFont.Bold))
+        symbol = "R" if power_up.power_type == "rapid_fire" else "D" if power_up.power_type == "double_shot" else "S"
+        painter.drawText(rect, Qt.AlignCenter, symbol)
+        
+    def draw_particle(self, painter, particle):
+        """Отрисовка частиц"""
+        color = QColor(particle.color)
+        color.setAlpha(particle.get_alpha())
+        painter.setBrush(QBrush(color))
+        painter.setPen(QPen(color, 1))
+        painter.drawEllipse(int(particle.x), int(particle.y), 3, 3)
+        
     def draw_hud(self, painter):
+        """Отрисовка HUD"""
         painter.setPen(QPen(QColor(255, 255, 255), 2))
-        painter.setFont(QFont('Arial', 14))
+        painter.setFont(QFont('Arial', 14, QFont.Bold))
         
         # Счёт
         painter.drawText(10, 25, f"Счёт: {self.engine.score}")
@@ -871,8 +1046,16 @@ class GameWidget(QWidget):
         # Волна
         painter.drawText(10, 75, f"Волна: {self.engine.wave}")
         
+        # Сложность
+        diff_text = self.engine.settings.difficulty.name
+        painter.drawText(10, 100, f"Сложность: {diff_text}")
+        
         # Рекорд
         painter.drawText(self.width() - 150, 25, f"Рекорд: {self.engine.high_score}")
+        
+        # Статистика стрельбы
+        accuracy = (self.engine.enemies_killed / max(self.engine.shots_fired, 1)) * 100
+        painter.drawText(self.width() - 150, 50, f"Точность: {accuracy:.1f}%")
         
     def draw_pause_screen(self, painter):
         # Полупрозрачный фон
@@ -881,7 +1064,7 @@ class GameWidget(QWidget):
         
         painter.setPen(QPen(QColor(255, 255, 255), 2))
         painter.setFont(QFont('Arial', 24, QFont.Bold))
-        painter.drawText(self.rect(), Qt.AlignCenter, "ПАУЗА\n\nНажмите P для продолжения")
+        painter.drawText(self.rect(), Qt.AlignCenter, "ПАУЗА\n\nP - Продолжить\nESC - В меню")
         
     def draw_game_over(self, painter):
         # Полупрозрачный фон
@@ -891,7 +1074,21 @@ class GameWidget(QWidget):
         painter.setPen(QPen(QColor(255, 255, 255), 2))
         painter.setFont(QFont('Arial', 24, QFont.Bold))
         
-        text = f"ИГРА ОКОНЧЕНА\n\nСчёт: {self.engine.score}\nРекорд: {self.engine.high_score}\n\nНажмите R для новой игры"
+        # Вычисление статистики
+        accuracy = (self.engine.enemies_killed / max(self.engine.shots_fired, 1)) * 100
+        game_duration = int(datetime.datetime.now().timestamp() - self.engine.game_start_time)
+        
+        text = f"""ИГРА ОКОНЧЕНА
+
+Счёт: {self.engine.score}
+Рекорд: {self.engine.high_score}
+Точность: {accuracy:.1f}%
+Время: {game_duration} сек
+Убито врагов: {self.engine.enemies_killed}
+
+R - Новая игра
+ESC - В меню"""
+        
         painter.drawText(self.rect(), Qt.AlignCenter, text)
 
 class MainWindow(QMainWindow):
