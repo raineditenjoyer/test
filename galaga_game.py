@@ -39,6 +39,14 @@ class GameState(Enum):
     PLAYING = 2
     GAME_OVER = 3
     PAUSED = 4
+    SETTINGS = 5
+    STATISTICS = 6
+    DIFFICULTY_SELECT = 7
+
+class DifficultyLevel(Enum):
+    EASY = 1
+    MEDIUM = 2
+    HARD = 3
 
 @dataclass
 class GameSettings:
@@ -49,6 +57,208 @@ class GameSettings:
     enemy_speed: int = 2
     enemy_bullet_speed: int = 4
     fps: int = 60
+    
+    # Звуковые настройки
+    sound_enabled: bool = True
+    music_enabled: bool = True
+    sound_volume: float = 0.7
+    music_volume: float = 0.5
+    
+    # Управление
+    key_left: int = Qt.Key_Left
+    key_right: int = Qt.Key_Right
+    key_up: int = Qt.Key_Up
+    key_down: int = Qt.Key_Down
+    key_shoot: int = Qt.Key_Space
+    key_alt_left: int = Qt.Key_A
+    key_alt_right: int = Qt.Key_D
+    key_alt_up: int = Qt.Key_W
+    key_alt_down: int = Qt.Key_S
+    
+    # Графические настройки
+    effects_enabled: bool = True
+    particles_enabled: bool = True
+    background_quality: int = 1  # 0-2 (низкое, среднее, высокое)
+    
+    # Настройки сложности
+    difficulty: DifficultyLevel = DifficultyLevel.MEDIUM
+
+class SoundManager:
+    def __init__(self):
+        self.sounds = {}
+        self.music_player = None
+        self.settings = None
+        self.init_sounds()
+        
+    def init_sounds(self):
+        """Инициализация звуковых эффектов"""
+        try:
+            # Создаем простые звуки программно (так как у нас нет аудио файлов)
+            self.create_synthetic_sounds()
+        except Exception as e:
+            print(f"Ошибка инициализации звуков: {e}")
+            
+    def create_synthetic_sounds(self):
+        """Создаем синтетические звуки для игры"""
+        # Здесь можно добавить генерацию звуков или использовать системные звуки
+        # Пока используем заглушки для звуков
+        self.sounds = {
+            'shoot': None,
+            'explosion': None,
+            'hit': None,
+            'powerup': None
+        }
+        
+    def play_sound(self, sound_name: str):
+        """Воспроизведение звука"""
+        if not self.settings or not self.settings.sound_enabled:
+            return
+            
+        if sound_name in self.sounds and self.sounds[sound_name]:
+            try:
+                # Здесь был бы код воспроизведения звука
+                pass
+            except Exception as e:
+                print(f"Ошибка воспроизведения звука {sound_name}: {e}")
+                
+    def play_music(self, music_name: str):
+        """Воспроизведение фоновой музыки"""
+        if not self.settings or not self.settings.music_enabled:
+            return
+            
+        try:
+            # Здесь был бы код воспроизведения музыки
+            pass
+        except Exception as e:
+            print(f"Ошибка воспроизведения музыки {music_name}: {e}")
+            
+    def stop_music(self):
+        """Остановка музыки"""
+        if self.music_player:
+            try:
+                self.music_player.stop()
+            except:
+                pass
+                
+    def set_settings(self, settings: GameSettings):
+        """Установка настроек"""
+        self.settings = settings
+
+class StatisticsManager:
+    def __init__(self):
+        self.db_path = "game_stats.db"
+        self.init_database()
+        
+    def init_database(self):
+        """Инициализация базы данных статистики"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS game_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                level INTEGER NOT NULL,
+                difficulty TEXT NOT NULL,
+                duration INTEGER NOT NULL,
+                enemies_killed INTEGER NOT NULL,
+                shots_fired INTEGER NOT NULL,
+                accuracy REAL NOT NULL
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+        
+    def save_game_result(self, score: int, level: int, difficulty: str, 
+                        duration: int, enemies_killed: int, shots_fired: int):
+        """Сохранение результата игры"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        accuracy = enemies_killed / max(shots_fired, 1) * 100
+        date = datetime.datetime.now().isoformat()
+        
+        cursor.execute('''
+            INSERT INTO game_results 
+            (date, score, level, difficulty, duration, enemies_killed, shots_fired, accuracy)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (date, score, level, difficulty, duration, enemies_killed, shots_fired, accuracy))
+        
+        conn.commit()
+        conn.close()
+        
+    def get_statistics(self, limit: int = 100) -> List[Dict]:
+        """Получение статистики игр"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM game_results 
+            ORDER BY date DESC 
+            LIMIT ?
+        ''', (limit,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                'id': row[0],
+                'date': row[1],
+                'score': row[2],
+                'level': row[3],
+                'difficulty': row[4],
+                'duration': row[5],
+                'enemies_killed': row[6],
+                'shots_fired': row[7],
+                'accuracy': row[8]
+            }
+            for row in results
+        ]
+        
+    def get_filtered_statistics(self, difficulty: str = None, 
+                              date_from: str = None, date_to: str = None) -> List[Dict]:
+        """Получение отфильтрованной статистики"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        query = "SELECT * FROM game_results WHERE 1=1"
+        params = []
+        
+        if difficulty:
+            query += " AND difficulty = ?"
+            params.append(difficulty)
+            
+        if date_from:
+            query += " AND date >= ?"
+            params.append(date_from)
+            
+        if date_to:
+            query += " AND date <= ?"
+            params.append(date_to)
+            
+        query += " ORDER BY date DESC"
+        
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                'id': row[0],
+                'date': row[1],
+                'score': row[2],
+                'level': row[3],
+                'difficulty': row[4],
+                'duration': row[5],
+                'enemies_killed': row[6],
+                'shots_fired': row[7],
+                'accuracy': row[8]
+            }
+            for row in results
+        ]
     
 class GameObject:
     def __init__(self, x: float, y: float, width: int, height: int):
